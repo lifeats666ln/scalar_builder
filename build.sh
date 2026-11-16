@@ -17,7 +17,7 @@ trap on_exit EXIT
 
 host_check
 kernel_fetch
-telegram_header
+telegram_prepare
 telegram_status "setup"
 toolchain_setup
 
@@ -44,4 +44,4 @@ for variant in "${VARIANTS[@]}"; do
 done
 
 CURRENT_STAGE=
-telegram_status "done"
+telegram_finish SUCCESS "$FINISH_LINES"

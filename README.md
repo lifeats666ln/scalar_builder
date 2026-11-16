@@ -112,7 +112,32 @@ The bot must be a member of a group and an administrator with "post messages"
 in a channel. Ids show up in `getUpdates` after a message was sent to the bot
 or the group.
 
-Each target gets its own status message:
+Each target owns one message. It starts as `[BUILDING]`, is edited at every
+stage and ends as `[SUCCESS]` or `[FAILED]`. The summary and the changelog of
+the last ten commits stay in it the whole time. The clone fetches 30 commits
+so there is history to list, merge commits are skipped.
+
+```text
+🔨 [BUILDING] Scalar Kernel <CodeName>
+📅 Date: 2026-11-16 14:10 WIB
+🌿 Branch: android12-5.10-staging
+🛠 Toolchain: clang-r614150
+🧪 Build: Vanilla, LTO full, 4 CPU
+📌 Head: 4b749c7 BACKPORT: erofs: Use ARM64 v8 ASM to accelerate lz4 ...
+🔗 Workflow run
+
+⏳ Vanilla: compile, 37m 12s
+  LTO     vmlinux.o
+
+📋 Changelog (last 10 commits):
+• subject (author, 4b749c7)
+```
+
+The title emoji marks the state: 🔨 building, ✅ success, ❌ failed. The stage
+block is replaced by `⏱ Build time` and `📦 Size` on success, or by `⚠️ Failed
+at` and the first error line on failure.
+
+The calls behind it:
 
 ```text
    build.sh                               Telegram

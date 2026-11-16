@@ -6,10 +6,10 @@ KVM_MAKEFILE=arch/arm64/kvm/Makefile
 
 kernel_fetch() {
 	if [ -d "$KERNEL_DIR/.git" ]; then
-		kernel_git fetch -q --depth=1 origin \
+		kernel_git fetch -q --depth=30 origin \
 			"+refs/heads/$KERNEL_BRANCH:refs/remotes/origin/$KERNEL_BRANCH"
 	else
-		git clone -q --depth=1 --branch "$KERNEL_BRANCH" "$KERNEL_REPO" "$KERNEL_DIR"
+		git clone -q --depth=30 --branch "$KERNEL_BRANCH" "$KERNEL_REPO" "$KERNEL_DIR"
 	fi
 	kernel_git rev-parse -q --verify "$KERNEL_REF^{commit}" >/dev/null ||
 		die "$KERNEL_REF not found"

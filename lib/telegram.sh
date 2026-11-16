@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# One Telegram status message per target, edited at every stage. Without a
-# token or targets every call does nothing, and a target that fails never
-# stops the build. Target syntax is in the README.
+# One Telegram message per target, edited from [BUILDING] to [SUCCESS] or
+# [FAILED]. Without a token or targets every call does nothing, and a target
+# that fails never stops the build. Target syntax is in the README.
 
 declare -A TELEGRAM_MESSAGES=()
-TELEGRAM_HEADER=
+TELEGRAM_FIELDS=
+TELEGRAM_CHANGELOG=
 PROGRESS_PID=
 
 telegram_targets() {
@@ -36,19 +37,31 @@ telegram_api() {
 
 telegram_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' <<< "$1"; }
 
-telegram_header() {
-	local run=
+telegram_prepare() {
+	local repo=${KERNEL_REPO%.git} head run= sha author subject
 
+	head=$(kernel_git rev-parse "$KERNEL_REF")
 	[ -z "${GITHUB_RUN_ID:-}" ] ||
-		run=$'\n'"<a href=\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\">workflow run</a>"
-	TELEGRAM_HEADER="<b>Scalar Kernel</b> $(telegram_escape "$CODENAME")
-<code>$KERNEL_BRANCH</code> @ <code>$(kernel_git rev-parse --short=12 "$KERNEL_REF")</code>
-$(telegram_escape "$(kernel_git log -1 --format=%s "$KERNEL_REF")")
-${VARIANTS[*]}, LTO $LTO, $CLANG_VERSION, $(nproc) CPU$run"
+		run=$'\n'"🔗 <a href=\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\">Workflow run</a>"
+	TELEGRAM_FIELDS="📅 Date: $(jakarta_date '+%Y-%m-%d %H:%M') WIB
+🌿 Branch: <code>$KERNEL_BRANCH</code>
+🛠 Toolchain: $CLANG_VERSION
+🧪 Build: ${VARIANTS[*]}, LTO $LTO, $(nproc) CPU
+📌 Head: <a href=\"$repo/commit/$head\">${head:0:7}</a> $(telegram_escape "$(kernel_git log -1 --format=%s "$KERNEL_REF")")$run"
+
+	TELEGRAM_CHANGELOG="📋 <b>Changelog</b> (last 10 commits):"
+	while IFS=$'\t' read -r sha author subject; do
+		TELEGRAM_CHANGELOG+=$'\n'"• $(telegram_escape "${subject:0:90}") ($(telegram_escape "$author"), <a href=\"$repo/commit/$sha\">${sha:0:7}</a>)"
+	done < <(kernel_git log --no-merges -10 --format=$'%H\t%an\t%s' "$KERNEL_REF")
 }
 
-telegram_status() {
-	local text="$TELEGRAM_HEADER"$'\n\n'"$1" target
+telegram_render() {
+	printf '%s <b>[%s] Scalar Kernel %s</b>\n%s\n\n%s\n\n%s' \
+		"$1" "$2" "$(telegram_escape "$CODENAME")" "$TELEGRAM_FIELDS" "$3" "$TELEGRAM_CHANGELOG"
+}
+
+telegram_post() {
+	local text=$1 target
 
 	for target in $(telegram_targets); do
 		if [ -z "${TELEGRAM_MESSAGES[$target]:-}" ]; then
@@ -66,9 +79,19 @@ telegram_status() {
 	done
 }
 
+telegram_status() { telegram_post "$(telegram_render 🔨 BUILDING "⏳ $1")"; }
+
+telegram_finish() {
+	local emoji=✅
+
+	[ "$1" = SUCCESS ] || emoji=❌
+	telegram_post "$(telegram_render "$emoji" "$1" "$2")"
+}
+
 telegram_send_file() {
 	local document=@$1 target file_id
 
+	# the first upload yields a file id that the other targets reuse
 	for target in $(telegram_targets); do
 		file_id=$(telegram_api "$target" sendDocument -F document="$document" \
 			--form-string parse_mode=HTML --form-string caption="$2" |
@@ -85,7 +108,7 @@ progress_start() {
 		while sleep 60; do
 			elapsed=$(( $(date +%s) - started ))
 			line=$(grep -E '^ +(CC|LD|AR|AS|LTO|OBJCOPY|GZIP|MODPOST) ' "$LOG_FILE" | tail -n 1 | sed 's/^ *//' || true)
-			telegram_status "$1, $((elapsed / 60))m$((elapsed % 60))s"$'\n'"<code>$(telegram_escape "$line")</code>"
+			telegram_status "$1, $((elapsed / 60))m $((elapsed % 60))s"$'\n'"<code>$(telegram_escape "$line")</code>"
 		done
 	) &
 	PROGRESS_PID=$!
