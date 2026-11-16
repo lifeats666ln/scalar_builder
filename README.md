@@ -197,7 +197,10 @@ cp config.env.example config.env
 Manual run (`workflow_dispatch`) with `codename`, `lto`, `branch`
 (`android12-5.10-staging` or `android12-5.10`) and `other_branch`, which
 overrides `branch`. A first step checks the branch with `git ls-remote` and
-fails at once if it is missing. Vanilla only, on `ubuntu-24.04`. The
+fails at once if it is missing. With the `SUSFS_TOKEN` secret, a fine-grained
+token that can read the private `lifeats666ln/scalar-patch`, its patches are
+checked out and SUSFS is built too; its zip goes to Telegram only, never to
+the artifacts. Runs on `ubuntu-24.04`. The
 toolchain is cached, ccache is keyed by branch and LTO mode with a fallback
 to the staging cache. `TELEGRAM_TOKEN` and `TELEGRAM_CHAT` are repository
 secrets. Artifacts are named after the branch and kept 14 days, failure logs

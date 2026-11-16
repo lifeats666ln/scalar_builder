@@ -28,11 +28,20 @@ env:
   KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
 
 jobs:
-  vanilla:
+  build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 360
+    env:
+      SUSFS_TOKEN: ${{ secrets.SUSFS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+
+      - if: env.SUSFS_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: lifeats666ln/scalar-patch
+          token: ${{ secrets.SUSFS_TOKEN }}
+          path: susfs
 
       # fail in seconds on a typo instead of after the toolchain download
       - name: Resolve branch
@@ -70,13 +79,16 @@ jobs:
           CODENAME: ${{ inputs.codename }}
           LTO: ${{ inputs.lto }}
           CCACHE_MAXSIZE: 4G
-        run: ./build.sh
+        run: |
+          [ ! -d susfs ] || export SUSFS_DIR=$GITHUB_WORKSPACE/susfs
+          ./build.sh
 
       - if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Scalar-${{ inputs.codename }}-Vanilla-${{ env.KERNEL_BRANCH }}
-          path: release/*.zip
+          # the SUSFS zip goes to Telegram only, artifacts of a public repository are public
+          path: release/*-Vanilla-*.zip
           retention-days: 14
 
       - if: failure()

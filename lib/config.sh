@@ -38,10 +38,8 @@ config_load() {
 	[[ $CODENAME =~ ^[A-Za-z0-9._-]{1,14}$ ]] || die "CODENAME must be 1-14 of [A-Za-z0-9._-]"
 	telegram_validate
 
-	# SUSFS is private and must never be built on a public runner.
 	VARIANTS=(Vanilla)
 	if [ -n "$SUSFS_DIR" ]; then
-		[ -z "${CI:-}" ] || die "refusing to build SUSFS in continuous integration"
 		ls "$SUSFS_DIR"/*.patch >/dev/null 2>&1 || die "no patches in $SUSFS_DIR"
 		VARIANTS=(SUSFS Vanilla)
 	fi
