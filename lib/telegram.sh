@@ -1,27 +1,37 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# One Telegram status message, edited at every stage. Without a token or chat
-# every call does nothing, and a failed call never stops the build.
+# One Telegram status message per target, edited at every stage. Without a
+# token or targets every call does nothing, and a target that fails never
+# stops the build. Target syntax is in the README.
 
+declare -A TELEGRAM_MESSAGES=()
 TELEGRAM_HEADER=
-TELEGRAM_MESSAGE=
 PROGRESS_PID=
 
-telegram_enabled() { [ -n "${TELEGRAM_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT:-}" ]; }
+telegram_targets() {
+	[ -n "${TELEGRAM_TOKEN:-}" ] || return 0
+	tr -s ', ' '\n' <<< "${TELEGRAM_CHAT:-}" | sed '/^$/d'
+}
 
 telegram_validate() {
-	[ -z "${TELEGRAM_CHAT:-}" ] ||
-		[[ $TELEGRAM_CHAT =~ ^(-?[0-9]+|@[A-Za-z0-9_]{5,32})$ ]] ||
-		die "TELEGRAM_CHAT: bad chat '$TELEGRAM_CHAT'"
+	local target
+
+	for target in $(telegram_targets); do
+		[[ $target =~ ^(-?[0-9]+|@[A-Za-z0-9_]{5,32})(/[0-9]+)?$ ]] ||
+			die "TELEGRAM_CHAT: bad target '$target'"
+	done
 }
 
 telegram_api() {
-	local method=$1
+	local target=$1 method=$2 chat=${1%%/*} thread=()
 
-	telegram_enabled || return 1
-	shift
+	shift 2
+	# only send* takes a thread, an edit addresses the message by id
+	if [[ $target == */* && $method == send* ]]; then
+		thread=(--form-string message_thread_id="${target#*/}")
+	fi
 	curl -fsS -m 120 "https://api.telegram.org/bot$TELEGRAM_TOKEN/$method" \
-		--form-string chat_id="$TELEGRAM_CHAT" "$@" 2>/dev/null
+		--form-string chat_id="$chat" "${thread[@]}" "$@" 2>/dev/null
 }
 
 telegram_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' <<< "$1"; }
@@ -38,27 +48,38 @@ ${VARIANTS[*]}, LTO $LTO, $CLANG_VERSION, $(nproc) CPU$run"
 }
 
 telegram_status() {
-	local text="$TELEGRAM_HEADER"$'\n\n'"$1"
+	local text="$TELEGRAM_HEADER"$'\n\n'"$1" target
 
-	if [ -z "$TELEGRAM_MESSAGE" ]; then
-		TELEGRAM_MESSAGE=$(telegram_api sendMessage --form-string parse_mode=HTML \
-			--form-string disable_web_page_preview=true --form-string text="$text" |
-			python3 -c 'import json, sys; print(json.load(sys.stdin)["result"]["message_id"])' \
-			2>/dev/null) || TELEGRAM_MESSAGE=
-	else
-		telegram_api editMessageText --form-string message_id="$TELEGRAM_MESSAGE" \
-			--form-string parse_mode=HTML --form-string disable_web_page_preview=true \
-			--form-string text="$text" >/dev/null || true
-	fi
+	for target in $(telegram_targets); do
+		if [ -z "${TELEGRAM_MESSAGES[$target]:-}" ]; then
+			TELEGRAM_MESSAGES[$target]=$(telegram_api "$target" sendMessage \
+				--form-string parse_mode=HTML --form-string disable_web_page_preview=true \
+				--form-string text="$text" |
+				python3 -c 'import json, sys; print(json.load(sys.stdin)["result"]["message_id"])' \
+				2>/dev/null) || TELEGRAM_MESSAGES[$target]=
+		else
+			telegram_api "$target" editMessageText \
+				--form-string message_id="${TELEGRAM_MESSAGES[$target]}" \
+				--form-string parse_mode=HTML --form-string disable_web_page_preview=true \
+				--form-string text="$text" >/dev/null || true
+		fi
+	done
 }
 
 telegram_send_file() {
-	telegram_api sendDocument -F document=@"$1" --form-string parse_mode=HTML \
-		--form-string caption="$2" >/dev/null || true
+	local document=@$1 target file_id
+
+	for target in $(telegram_targets); do
+		file_id=$(telegram_api "$target" sendDocument -F document="$document" \
+			--form-string parse_mode=HTML --form-string caption="$2" |
+			python3 -c 'import json, sys; print(json.load(sys.stdin)["result"]["document"]["file_id"])' \
+			2>/dev/null) || continue
+		[ -z "$file_id" ] || document=$file_id
+	done
 }
 
 progress_start() {
-	telegram_enabled || return 0
+	[ -n "$(telegram_targets)" ] || return 0
 	(
 		started=$(date +%s)
 		while sleep 60; do
