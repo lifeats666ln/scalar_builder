@@ -9,8 +9,8 @@ on:
       lto:
         description: Link time optimization mode
         type: choice
-        options: [full, thin]
-        default: full
+        options: [thin, full]
+        default: thin
       branch:
         description: Kernel branch
         type: choice

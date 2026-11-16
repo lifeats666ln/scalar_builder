@@ -204,5 +204,6 @@ the artifacts. Runs on `ubuntu-24.04`. The
 toolchain is cached, ccache is keyed by branch and LTO mode with a fallback
 to the staging cache. `TELEGRAM_TOKEN` and `TELEGRAM_CHAT` are repository
 secrets. Artifacts are named after the branch and kept 14 days, failure logs
-7. If the link is killed by the out-of-memory killer on the 16 GB runner, use
-`lto=thin`.
+7. `lto` defaults to `thin`: a full LTO link of SUSFS starves the 16 GB runner
+even with 32 GB of swap and the runner loses contact with GitHub. Build full
+LTO releases on a larger machine.
