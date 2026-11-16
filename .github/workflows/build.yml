@@ -1,0 +1,87 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: Codename, 1-14 characters
+        required: true
+      lto:
+        description: Link time optimization mode
+        type: choice
+        options: [full, thin]
+        default: full
+      branch:
+        description: Kernel branch
+        type: choice
+        options: [android12-5.10-staging, android12-5.10]
+        default: android12-5.10-staging
+      other_branch:
+        description: Any other branch, overrides the choice above
+        required: false
+
+concurrency:
+  group: build-${{ inputs.other_branch || inputs.branch }}
+
+env:
+  KERNEL_BRANCH: ${{ inputs.other_branch || inputs.branch }}
+  KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
+
+jobs:
+  vanilla:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      # fail in seconds on a typo instead of after the toolchain download
+      - name: Resolve branch
+        run: |
+          commit=$(git ls-remote --exit-code --heads "$KERNEL_REPO" "$KERNEL_BRANCH" | cut -c1-12) ||
+            { echo "::error::branch $KERNEL_BRANCH not found in $KERNEL_REPO"; exit 1; }
+          echo "$KERNEL_BRANCH @ $commit" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # the default image leaves too little room for a link time optimized build
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bc bison flex libssl-dev libelf-dev lz4 cpio zip ccache
+
+      - uses: actions/cache@v4
+        with:
+          path: toolchain
+          key: clang-r614150
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ env.KERNEL_BRANCH }}-${{ inputs.lto }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ env.KERNEL_BRANCH }}-${{ inputs.lto }}-
+            ccache-android12-5.10-staging-${{ inputs.lto }}-
+
+      - name: Build
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          CODENAME: ${{ inputs.codename }}
+          LTO: ${{ inputs.lto }}
+          CCACHE_MAXSIZE: 4G
+        run: ./build.sh
+
+      - if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scalar-${{ inputs.codename }}-Vanilla-${{ env.KERNEL_BRANCH }}
+          path: release/*.zip
+          retention-days: 14
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failed
+          path: release/build-failed-*.txt
+          retention-days: 7
