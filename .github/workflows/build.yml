@@ -58,10 +58,11 @@ jobs:
       - name: Add swap
         run: |
           sudo swapoff -a
-          sudo fallocate -l 16G /mnt/swapfile
+          sudo fallocate -l 32G /mnt/swapfile
           sudo chmod 600 /mnt/swapfile
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
+          df -h /mnt
           free -h
 
       - name: Install host tools
