@@ -24,21 +24,22 @@ toolchain_setup
 for variant in "${VARIANTS[@]}"; do
 	CURRENT_STAGE=$variant
 	object_dir=$ROOT/out/${variant,,}
+	label=$(variant_label "$variant")
 
-	telegram_status "$variant: configure"
+	telegram_status "$label: configure"
 	kernel_prepare "$variant"
 	kernel_configure "$variant" "$object_dir"
 
 	started=$(date +%s)
-	progress_start "$variant: compile"
+	progress_start "$label: compile"
 	kernel_compile "$object_dir"
 	progress_stop
 
-	telegram_status "$variant: ABI check"
+	telegram_status "$label: ABI check"
 	abi_check "$object_dir"
 	duration=$(( $(date +%s) - started ))
 
-	telegram_status "$variant: package"
+	telegram_status "$label: package"
 	package "$variant" "$object_dir"
 	report_result "$variant" "$duration"
 done

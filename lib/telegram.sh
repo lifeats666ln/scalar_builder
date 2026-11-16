@@ -38,13 +38,16 @@ telegram_api() {
 telegram_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' <<< "$1"; }
 
 telegram_prepare() {
-	local repo=${KERNEL_REPO%.git} head sha subject
+	local repo=${KERNEL_REPO%.git} head sha subject variant builds=
 
 	head=$(kernel_git rev-parse "$KERNEL_REF")
+	for variant in "${VARIANTS[@]}"; do
+		builds+="${builds:+, }$(variant_label "$variant")"
+	done
 	TELEGRAM_FIELDS="📅 $(jakarta_date '+%Y-%m-%d %H:%M') WIB
 🌿 <code>$KERNEL_BRANCH</code> @ <a href=\"$repo/commit/$head\">${head:0:7}</a>
 🛠 $CLANG_VERSION · LTO $LTO · $(nproc) CPU
-🧪 ${VARIANTS[*]}"
+🧪 $builds"
 
 	TELEGRAM_CHANGELOG="📋 <b>Changelog</b>"$'
 '"<blockquote expandable>"

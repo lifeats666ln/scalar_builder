@@ -9,6 +9,9 @@ kernel_git() { git -C "$KERNEL_DIR" "$@"; }
 
 jakarta_date() { TZ=WIB-7 date "$@"; }
 
+# the name people see, SUSFS also carries KernelSU-Next
+variant_label() { [ "$1" = SUSFS ] && echo "KSUN + SUSFS" || echo "$1"; }
+
 host_check() {
 	local binary
 
