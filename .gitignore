@@ -1,0 +1,6 @@
+config.env
+kernel/
+toolchain/
+out/
+release/
+build.log
