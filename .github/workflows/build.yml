@@ -31,6 +31,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    permissions:
+      contents: write
     env:
       SUSFS_DEPLOY_KEY: ${{ secrets.SUSFS_DEPLOY_KEY }}
     steps:
@@ -97,10 +99,16 @@ jobs:
       - if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Scalar-${{ inputs.codename }}-Vanilla-${{ env.KERNEL_BRANCH }}
-          # the SUSFS zip goes to Telegram only, artifacts of a public repository are public
-          path: release/*-Vanilla-*.zip
+          name: Scalar-${{ inputs.codename }}-${{ env.KERNEL_BRANCH }}
+          path: release/*.zip
           retention-days: 14
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODENAME: ${{ inputs.codename }}
+          LTO: ${{ inputs.lto }}
+        run: ./release.sh
 
       - if: failure()
         uses: actions/upload-artifact@v4

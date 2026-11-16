@@ -207,3 +207,9 @@ secrets. Artifacts are named after the branch and kept 14 days, failure logs
 7. `lto` defaults to `thin`: a full LTO link of SUSFS starves the 16 GB runner
 even with 32 GB of swap and the runner loses contact with GitHub. Build full
 LTO releases on a larger machine.
+
+After a successful build `release.sh` publishes `release/` as a GitHub release
+tagged `<codename>-<date>-r<run>`, a prerelease unless the branch is
+`android12-5.10`. The notes list each zip with its sha256 and the
+`git shortlog` since the previous release of the same branch, whose kernel
+head is kept in a hidden `<!-- head <branch> <sha> -->` line.
