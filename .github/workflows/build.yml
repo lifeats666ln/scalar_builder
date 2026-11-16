@@ -54,6 +54,16 @@ jobs:
       - name: Free disk space
         run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
 
+      # a full LTO link of the SUSFS variant needs more than the 16 GB of RAM
+      - name: Add swap
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 16G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - name: Install host tools
         run: |
           sudo apt-get update -qq
