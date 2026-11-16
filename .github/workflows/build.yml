@@ -32,15 +32,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      SUSFS_TOKEN: ${{ secrets.SUSFS_TOKEN }}
+      SUSFS_DEPLOY_KEY: ${{ secrets.SUSFS_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
 
-      - if: env.SUSFS_TOKEN != ''
+      - if: env.SUSFS_DEPLOY_KEY != ''
         uses: actions/checkout@v4
         with:
           repository: lifeats666ln/scalar-patch
-          token: ${{ secrets.SUSFS_TOKEN }}
+          ssh-key: ${{ secrets.SUSFS_DEPLOY_KEY }}
           path: susfs
 
       # fail in seconds on a typo instead of after the toolchain download
