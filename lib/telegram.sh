@@ -38,26 +38,35 @@ telegram_api() {
 telegram_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' <<< "$1"; }
 
 telegram_prepare() {
-	local repo=${KERNEL_REPO%.git} head run= sha author subject
+	local repo=${KERNEL_REPO%.git} head sha subject
 
 	head=$(kernel_git rev-parse "$KERNEL_REF")
-	[ -z "${GITHUB_RUN_ID:-}" ] ||
-		run=$'\n'"🔗 <a href=\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\">Workflow run</a>"
-	TELEGRAM_FIELDS="📅 Date: $(jakarta_date '+%Y-%m-%d %H:%M') WIB
-🌿 Branch: <code>$KERNEL_BRANCH</code>
-🛠 Toolchain: $CLANG_VERSION
-🧪 Build: ${VARIANTS[*]}, LTO $LTO, $(nproc) CPU
-📌 Head: <a href=\"$repo/commit/$head\">${head:0:7}</a> $(telegram_escape "$(kernel_git log -1 --format=%s "$KERNEL_REF")")$run"
+	TELEGRAM_FIELDS="📅 $(jakarta_date '+%Y-%m-%d %H:%M') WIB
+🌿 <code>$KERNEL_BRANCH</code> @ <a href=\"$repo/commit/$head\">${head:0:7}</a>
+🛠 $CLANG_VERSION · LTO $LTO · $(nproc) CPU
+🧪 ${VARIANTS[*]}"
 
-	TELEGRAM_CHANGELOG="📋 <b>Changelog</b> (last 10 commits):"
-	while IFS=$'\t' read -r sha author subject; do
-		TELEGRAM_CHANGELOG+=$'\n'"• $(telegram_escape "${subject:0:90}") ($(telegram_escape "$author"), <a href=\"$repo/commit/$sha\">${sha:0:7}</a>)"
-	done < <(kernel_git log --no-merges -10 --format=$'%H\t%an\t%s' "$KERNEL_REF")
+	TELEGRAM_CHANGELOG="📋 <b>Changelog</b>"$'
+'"<blockquote expandable>"
+	while IFS=$'	' read -r sha subject; do
+		TELEGRAM_CHANGELOG+="<a href=\"$repo/commit/$sha\">${sha:0:7}</a> $(telegram_escape "${subject:0:72}")"$'
+'
+	done < <(kernel_git log --no-merges -10 --format=$'%H	%s' "$KERNEL_REF")
+	TELEGRAM_CHANGELOG="${TELEGRAM_CHANGELOG%$'
+'}</blockquote>"
+	[ -z "${GITHUB_RUN_ID:-}" ] ||
+		TELEGRAM_CHANGELOG+=$'
+'"🔗 <a href=\"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\">Workflow run</a>"
 }
 
 telegram_render() {
-	printf '%s <b>[%s] Scalar Kernel %s</b>\n%s\n\n%s\n\n%s' \
-		"$1" "$2" "$(telegram_escape "$CODENAME")" "$TELEGRAM_FIELDS" "$3" "$TELEGRAM_CHANGELOG"
+	printf '%s <b>Scalar Kernel %s</b> · <code>%s</code>
+
+<blockquote>%s</blockquote>
+
+%s
+
+%s' 		"$1" "$(telegram_escape "$CODENAME")" "$2" "$TELEGRAM_FIELDS" "$3" "$TELEGRAM_CHANGELOG"
 }
 
 telegram_post() {
