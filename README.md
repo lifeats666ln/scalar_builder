@@ -113,29 +113,50 @@ in a channel. Ids show up in `getUpdates` after a message was sent to the bot
 or the group.
 
 Each target owns one message. It starts as `[BUILDING]`, is edited at every
-stage and ends as `[SUCCESS]` or `[FAILED]`. The summary and the changelog of
-the last ten commits stay in it the whole time. The clone fetches 30 commits
-so there is history to list, merge commits are skipped.
+stage and ends as `[SUCCESS]`, `[FAILED]` or `[CANCELLED]`. The summary and the
+changelog of the last ten commits stay in it the whole time. The clone fetches
+30 commits so there is history to list, merge commits are skipped.
 
 ```text
-🔨 [BUILDING] Scalar Kernel <CodeName>
-📅 Date: 2026-11-16 14:10 WIB
-🌿 Branch: android12-5.10-staging
-🛠 Toolchain: clang-r614150
-🧪 Build: Vanilla, LTO full, 4 CPU
-📌 Head: 4b749c7 BACKPORT: erofs: Use ARM64 v8 ASM to accelerate lz4 ...
-🔗 Workflow run
+🔨 <b>Scalar Kernel Bifeng</b> · <code>BUILDING</code>
 
-⏳ Vanilla: compile, 37m 12s
-  LTO     vmlinux.o
+<blockquote>📅 2026-11-16 14:10 WIB
+🌿 android12-5.10-staging @ 4b749c7
+🛠 clang-r614150 · LTO full · 4 CPU
+🧪 Vanilla, KSUN + SUSFS</blockquote>
 
-📋 Changelog (last 10 commits):
-• subject (author, 4b749c7)
+⏳ KSUN + SUSFS: compile, 37m 12s
+<code>LTO     vmlinux.o</code>
+
+📋 <b>Changelog</b>
+<blockquote expandable>• 4b749c7 BACKPORT: erofs: Use ARM64 v8 ASM ...</blockquote>
 ```
 
-The title emoji marks the state: 🔨 building, ✅ success, ❌ failed. The stage
-block is replaced by `⏱ Build time` and `📦 Size` on success, or by `⚠️ Failed
-at` and the first error line on failure.
+The title emoji marks the state: 🔨 building, ✅ success, ❌ build error,
+🚫 cancelled. Each terminal state replaces the stage block with its own card:
+
+```text
+✅ ... SUCCESS
+📲 5.10.272-Scalar-Bifeng-SUSFS-android12-9-g4f2a7381f169
+✅ KSUN + SUSFS · ABI OK · ⏱ 37m 12s · 💾 25M
+🔑 sha256 5139fea704c34853
+
+❌ ... FAILED
+❌ Build error · KSUN + SUSFS (exit 2)
+🐞 2 error line(s): error: something broke
+📄 Log: build-failed-SUSFS-20261116-1410.txt
+
+🚫 ... CANCELLED
+🚫 Build cancelled · KSUN + SUSFS
+⏹ Signal: TERM · stage: SUSFS
+📄 Partial log: build.log
+```
+
+The zip gets the success card as its caption, the failure log is attached to
+the error message. `INT`, `TERM` and `HUP` during the build are reported as
+`CANCELLED` with the signal and the current stage, so a GitHub Actions
+cancellation or the 360-minute timeout no longer leaves the message stuck on
+`[BUILDING]` or gets misreported as a failure.
 
 The calls behind it:
 

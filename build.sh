@@ -14,6 +14,9 @@ done
 config_load
 exec > >(tee "$LOG_FILE") 2>&1
 trap on_exit EXIT
+trap 'on_signal INT' INT
+trap 'on_signal TERM' TERM
+trap 'on_signal HUP' HUP
 
 host_check
 kernel_fetch
@@ -45,4 +48,5 @@ for variant in "${VARIANTS[@]}"; do
 done
 
 CURRENT_STAGE=
+BUILD_FINISHED=1
 telegram_finish SUCCESS "$FINISH_LINES"

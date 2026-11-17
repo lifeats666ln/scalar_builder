@@ -96,7 +96,10 @@ telegram_status() { telegram_post "$(telegram_render 🔨 BUILDING "⏳ $1")"; }
 telegram_finish() {
 	local emoji=✅
 
-	[ "$1" = SUCCESS ] || emoji=❌
+	case $1 in
+		FAILED) emoji=❌ ;;
+		CANCELLED) emoji=🚫 ;;
+	esac
 	telegram_post "$(telegram_render "$emoji" "$1" "$2")"
 }
 
