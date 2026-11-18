@@ -12,7 +12,7 @@ ERROR_PATTERN='error:|Error [0-9]+|undefined reference|FAILED|ABI check failed'
 # Shared result block for the status message and the file caption. Reads the
 # ABI counts produced by abi_check() so the ABI line shows real numbers.
 result_block() {
-	local variant=$1 duration=$2 size sha name obj abi_built=0 abi_expected=0 head esc_release
+	local variant=$1 duration=$2 size sha name obj abi_bad=0 abi_expected=0 abi_matched head esc_release
 
 	duration="$(( $2 / 60 ))m $(( $2 % 60 ))s"
 	size=$(du -h "$ZIP_FILE" | cut -f1)
@@ -22,13 +22,14 @@ result_block() {
 	head=$(kernel_git rev-parse --short=7 "$KERNEL_REF" 2>/dev/null)
 
 	obj="$ROOT/out/${variant,,}"
-	[ -f "$obj/abi.actual" ] && abi_built=$(wc -l < "$obj/abi.actual")
+	[ -f "$obj/abi.diff" ] && abi_bad=$(wc -l < "$obj/abi.diff")
 	[ -f "$obj/abi.expected" ] && abi_expected=$(wc -l < "$obj/abi.expected")
+	abi_matched=$((abi_expected - abi_bad))
 
 	printf '%s' \
 		"<code>$esc_release</code>"$'\n'$'\n' \
 		"<blockquote>" \
-		"ABI <code>$abi_built/$abi_expected</code> KMI symbols matched"$'\n' \
+		"Release <code>$RELEASE_TYPE</code> · ABI <code>$abi_matched/$abi_expected</code> KMI symbols matched"$'\n' \
 		"Toolchain <code>$CLANG_VERSION</code> · LTO <code>$LTO</code>"$'\n' \
 		"Branch <code>$KERNEL_BRANCH</code> @ <code>$head</code> · $(jakarta_date '+%Y-%m-%d %H:%M') WIB"$'\n' \
 		"Duration <code>$duration</code> · Image <code>$size</code>"$'\n' \

@@ -15,13 +15,16 @@ KERNEL_DIR=${KERNEL_DIR:-$ROOT/kernel}
 repo=${KERNEL_REPO%.git}
 head=$(kernel_git rev-parse "origin/$KERNEL_BRANCH")
 date=$(jakarta_date +%Y-%m-%d)
-tag=${CODENAME,,}-${date//-/}-r$GITHUB_RUN_NUMBER
+tag=${CODENAME,,}-${RELEASE_TYPE}-${date//-/}-r$GITHUB_RUN_NUMBER
 zips=("$ROOT"/release/*.zip)
 version=$(basename "${zips[0]}" | sed -E 's/.*-([0-9]+\.[0-9]+\.[0-9]+)-[0-9]{8}\.zip$/\1/')
 
 # the previous release of this branch records its kernel head in a comment
 base=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" -q '.[].body' |
-	sed -n "s/^<!-- head $KERNEL_BRANCH \([0-9a-f]\{40\}\) -->\$/\1/p" | head -n 1)
+	sed -n -E \
+		-e "s|^<!-- head $KERNEL_BRANCH $RELEASE_TYPE ([0-9a-f]{40}) -->\$|\1|p" \
+		-e "s|^<!-- head $KERNEL_BRANCH ([0-9a-f]{40}) -->\$|\1|p" |
+	head -n 1)
 since=
 if [ -n "$base" ]; then
 	kernel_git cat-file -e "$base^{commit}" 2>/dev/null ||
@@ -41,7 +44,7 @@ else
 fi
 
 {
-	echo "Scalar Kernel **$CODENAME**, \`$KERNEL_BRANCH\` at [${head:0:12}]($repo/commit/$head), $CLANG_VERSION, LTO $LTO."
+	echo "Scalar Kernel **$CODENAME** ($RELEASE_TYPE), \`$KERNEL_BRANCH\` at [${head:0:12}]($repo/commit/$head), $CLANG_VERSION, LTO $LTO."
 	echo
 	echo "| Variant | File | sha256 |"
 	echo "|---|---|---|"
@@ -57,12 +60,14 @@ fi
 	[ -z "$stat" ] || printf '\n%s\n' "$stat"
 	echo '```'
 	echo
-	echo "<!-- head $KERNEL_BRANCH $head -->"
+	echo "<!-- head $KERNEL_BRANCH $RELEASE_TYPE $head -->"
 } > "$ROOT/release/notes.md"
 
 prerelease=--prerelease
-[ "$KERNEL_BRANCH" != android12-5.10 ] || prerelease=
+if [ "$KERNEL_BRANCH" = android12-5.10 ] && [ "$RELEASE_TYPE" = stable ]; then
+	prerelease=
+fi
 gh release create "$tag" -R "$GITHUB_REPOSITORY" $prerelease \
-	--title "Scalar Kernel $CODENAME $version ($date)" \
+	--title "Scalar Kernel $CODENAME $version ($date) [$RELEASE_TYPE]" \
 	--notes-file "$ROOT/release/notes.md" \
 	"${zips[@]}" "$ROOT"/release/*-Image.gz

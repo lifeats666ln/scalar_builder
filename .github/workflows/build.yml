@@ -16,6 +16,11 @@ on:
         type: choice
         options: [android12-5.10-staging, android12-5.10]
         default: android12-5.10-staging
+      release_type:
+        description: Release type
+        type: choice
+        options: [weekly, stable]
+        default: weekly
       other_branch:
         description: Any other branch, overrides the choice above
         required: false
@@ -26,6 +31,7 @@ concurrency:
 env:
   KERNEL_BRANCH: ${{ inputs.other_branch || inputs.branch }}
   KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
+  RELEASE_TYPE: ${{ inputs.release_type }}
 
 jobs:
   build:
@@ -99,7 +105,7 @@ jobs:
       - if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Scalar-${{ inputs.codename }}-${{ env.KERNEL_BRANCH }}
+          name: Scalar-${{ inputs.codename }}-${{ inputs.release_type }}-${{ env.KERNEL_BRANCH }}
           path: release/*.zip
           retention-days: 14
 

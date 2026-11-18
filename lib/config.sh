@@ -34,8 +34,11 @@ config_load() {
 	LTO=${LTO:-full}
 	CLEAN=${CLEAN:-n}
 	CODENAME=${CODENAME:-}
+	RELEASE_TYPE=${RELEASE_TYPE:-weekly}
 	[[ $LTO == full || $LTO == thin ]] || die "LTO must be full or thin"
 	[[ $CODENAME =~ ^[A-Za-z0-9._-]{1,14}$ ]] || die "CODENAME must be 1-14 of [A-Za-z0-9._-]"
+	[[ $RELEASE_TYPE == stable || $RELEASE_TYPE == weekly ]] ||
+		die "RELEASE_TYPE must be stable or weekly"
 	telegram_validate
 
 	VARIANTS=(Vanilla)
