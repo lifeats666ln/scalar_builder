@@ -9,22 +9,43 @@ CANCEL_SIGNAL=
 BUILD_FINISHED=
 ERROR_PATTERN='error:|Error [0-9]+|undefined reference|FAILED|ABI check failed'
 
-report_result() {
-	local variant=$1 duration size sha name newline=$'\n' esc_release
+# Shared result block for the status message and the file caption. Reads the
+# ABI counts produced by abi_check() so the ABI line shows real numbers.
+result_block() {
+	local variant=$1 duration=$2 size sha name obj abi_built=0 abi_expected=0 head esc_release
 
 	duration="$(( $2 / 60 ))m $(( $2 % 60 ))s"
 	size=$(du -h "$ZIP_FILE" | cut -f1)
 	sha=$(sha256sum "$ZIP_FILE" | cut -c1-16)
 	name=$(variant_label "$variant")
 	esc_release=$(telegram_escape "$RELEASE_STRING")
+	head=$(kernel_git rev-parse --short=7 "$KERNEL_REF" 2>/dev/null)
 
+	obj="$ROOT/out/${variant,,}"
+	[ -f "$obj/abi.actual" ] && abi_built=$(wc -l < "$obj/abi.actual")
+	[ -f "$obj/abi.expected" ] && abi_expected=$(wc -l < "$obj/abi.expected")
+
+	printf '%s' \
+		"<code>$esc_release</code>"$'\n'$'\n' \
+		"<blockquote>" \
+		"ABI <code>$abi_built/$abi_expected</code> KMI symbols matched"$'\n' \
+		"Toolchain <code>$CLANG_VERSION</code> · LTO <code>$LTO</code>"$'\n' \
+		"Branch <code>$KERNEL_BRANCH</code> @ <code>$head</code> · $(jakarta_date '+%Y-%m-%d %H:%M') WIB"$'\n' \
+		"Duration <code>$duration</code> · Image <code>$size</code>"$'\n' \
+		"SHA256 <code>$sha</code> (prefix)" \
+		"</blockquote>"
+}
+
+report_result() {
+	local variant=$1 seconds=$2 name duration block
+
+	name=$(variant_label "$variant")
+	duration="$(( $2 / 60 ))m $(( $2 % 60 ))s"
+	block=$(result_block "$variant" "$seconds")
 	RESULTS+=("$RELEASE_STRING ($duration)" "  $ZIP_FILE")
-	FINISH_LINES+="${FINISH_LINES:+$newline}📲 <code>$esc_release</code>${newline}✅ $name · ABI OK · ⏱ $duration · 💾 $size${newline}🔑 sha256 <code>$sha</code>"
+	FINISH_LINES+="${FINISH_LINES:+$'\n'$'\n'}<b>$name</b>"$'\n'"$block"
 
-	telegram_send_file "$ZIP_FILE" "✅ <b>Build success</b> · $name
-📲 <code>$esc_release</code>
-🔒 ABI OK · ⏱ $duration · 💾 $size
-🔑 sha256 <code>$sha</code>"
+	telegram_send_file "$ZIP_FILE" "<b>Build success</b> · $name"$'\n'$'\n'"$block"
 }
 
 report_failure() {
