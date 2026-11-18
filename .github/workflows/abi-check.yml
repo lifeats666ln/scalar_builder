@@ -1,0 +1,109 @@
+name: ABI check
+
+on:
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: Codename, 1-14 characters
+        required: true
+      lto:
+        description: Link time optimization mode
+        type: choice
+        options: [thin, full]
+        default: thin
+      branch:
+        description: Kernel branch
+        type: choice
+        options: [android12-5.10-staging, android12-5.10]
+        default: android12-5.10-staging
+      other_branch:
+        description: Any other branch, overrides the choice above
+        required: false
+      notify:
+        description: Telegram notification
+        type: choice
+        options: [on_failure, always, never]
+        default: on_failure
+
+concurrency:
+  group: abi-${{ inputs.other_branch || inputs.branch }}
+
+env:
+  KERNEL_BRANCH: ${{ inputs.other_branch || inputs.branch }}
+  KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
+
+jobs:
+  abi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      SUSFS_DEPLOY_KEY: ${{ secrets.SUSFS_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: env.SUSFS_DEPLOY_KEY != ''
+        uses: actions/checkout@v4
+        with:
+          repository: lifeats666ln/scalar-patch
+          ssh-key: ${{ secrets.SUSFS_DEPLOY_KEY }}
+          path: susfs
+
+      - name: Resolve branch
+        run: |
+          commit=$(git ls-remote --exit-code --heads "$KERNEL_REPO" "$KERNEL_BRANCH" | cut -c1-12) ||
+            { echo "::error::branch $KERNEL_BRANCH not found in $KERNEL_REPO"; exit 1; }
+          echo "$KERNEL_BRANCH @ $commit" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Add swap
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 32G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+
+      - name: Install host tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bc bison flex libssl-dev libelf-dev lz4 cpio zip ccache
+
+      - uses: actions/cache@v4
+        with:
+          path: toolchain
+          key: clang-r614150
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ env.KERNEL_BRANCH }}-${{ inputs.lto }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-${{ env.KERNEL_BRANCH }}-${{ inputs.lto }}-
+            ccache-android12-5.10-staging-${{ inputs.lto }}-
+
+      - name: Check ABI
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          CODENAME: ${{ inputs.codename }}
+          LTO: ${{ inputs.lto }}
+          NOTIFY: ${{ inputs.notify }}
+          CCACHE_MAXSIZE: 4G
+        run: |
+          [ ! -d susfs ] || export SUSFS_DIR=$GITHUB_WORKSPACE/susfs
+          ./abi-check.sh
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abi-${{ inputs.codename }}-${{ env.KERNEL_BRANCH }}
+          path: |
+            out/*/abi.expected
+            out/*/abi.actual
+            out/*/abi.diff
+            out/*/abi.breakage.tsv
+            out/*/abi.report.md
+          if-no-files-found: ignore
+          retention-days: 14
