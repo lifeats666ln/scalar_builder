@@ -20,10 +20,10 @@ on:
         description: Any other branch, overrides the choice above
         required: false
       notify:
-        description: Telegram notification
+        description: Telegram notification (opt-in)
         type: choice
-        options: [on_failure, always, never]
-        default: on_failure
+        options: [never, on_failure, always]
+        default: never
 
 concurrency:
   group: abi-${{ inputs.other_branch || inputs.branch }}
@@ -104,6 +104,6 @@ jobs:
             out/*/abi.actual
             out/*/abi.diff
             out/*/abi.breakage.tsv
-            out/*/abi.report.md
+            out/*/abi.report.txt
           if-no-files-found: ignore
           retention-days: 14

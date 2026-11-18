@@ -26,7 +26,7 @@ abi_report() {
 	local object_dir=$1 variant=$2 limit=${ABI_REPORT_LIMIT:-300}
 	local report expected actual extra missing mismatched broken
 
-	report=$object_dir/abi.report.md
+	report=$object_dir/abi.report.txt
 	expected=$(wc -l < "$object_dir/abi.expected")
 	actual=$(wc -l < "$object_dir/abi.actual")
 	extra=$(awk 'NR==FNR{e[$1]=1;next} !($1 in e){n++} END{print n+0}' \
@@ -42,38 +42,38 @@ abi_report() {
 	mismatched=$(awk -F'\t' '$1=="mismatch"{n++}END{print n+0}' "$object_dir/abi.breakage.tsv")
 
 	{
-		echo "### ABI: $(variant_label "$variant")"
+		echo "ABI CHECK: $(variant_label "$variant")"
+		echo "branch:   $KERNEL_BRANCH @ $(kernel_git rev-parse --short=12 "$KERNEL_REF")"
+		echo "toolchain: $CLANG_VERSION, LTO $LTO"
 		echo
-		echo "- branch: <code>$KERNEL_BRANCH</code> @ <code>$(kernel_git rev-parse --short=12 "$KERNEL_REF")</code>"
-		echo "- toolchain: <code>$CLANG_VERSION</code> · LTO <code>$LTO</code>"
+		printf '  %-26s %s\n' "KMI symbols expected" "$expected" \
+			"CRC symbols in vmlinux" "$actual" \
+			"extra, not in KMI" "$extra" \
+			"missing from vmlinux" "$missing" \
+			"CRC mismatch" "$mismatched"
 		echo
-		echo "| check | count |"
-		echo "|---|---|"
-		echo "| KMI symbols expected | $expected |"
-		echo "| CRC symbols in vmlinux | $actual |"
-		echo "| extra, not in KMI | $extra |"
-		echo "| missing from vmlinux | $missing |"
-		echo "| CRC mismatch | $mismatched |"
-		echo
-		[ "$extra" -eq 0 ] || echo "Extra CRC symbols are expected, only missing or mismatched ones break modules."
+		[ "$extra" -eq 0 ] || echo "Extra CRC symbols are expected; only missing or mismatched ones break modules."
 		[ "$extra" -eq 0 ] || echo
 		if [ "$broken" -eq 0 ]; then
 			echo "KMI intact."
 		else
-			echo "KMI broken. First $limit of $broken:"
+			echo "KMI BROKEN: $missing missing, $mismatched CRC mismatch"
 			echo
-			echo "| symbol | issue | expected | built |"
-			echo "|---|---|---|---|"
-			awk -F'\t' -v limit="$limit" 'NR<=limit{print "| <code>" $2 "</code> | " $1 " | <code>" $3 "</code> | <code>" $4 "</code> |"}' \
+			printf '  %-26s %-10s %-12s %s\n' SYMBOL ISSUE EXPECTED BUILT
+			awk -F'\t' -v limit="$limit" 'NR<=limit{printf "  %-26s %-10s %-12s %s\n", $2, $1, $3, $4}' \
 				"$object_dir/abi.breakage.tsv"
 			if [ "$broken" -gt "$limit" ]; then
 				echo
-				echo "Full list in <code>abi.breakage.tsv</code> artifact."
+				echo "Truncated at $limit of $broken. Full list: abi.breakage.tsv"
 			fi
 		fi
-		echo
 	} > "$report"
 
-	cat "$report" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+	{
+		echo '<pre>'
+		cat "$report"
+		echo '</pre>'
+	} >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+
 	[ "$broken" -eq 0 ]
 }
