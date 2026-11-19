@@ -11,12 +11,16 @@ abi_check() {
 	llvm-nm "$object_dir/vmlinux" |
 		awk '$3 ~ /^__crc_/ { value = tolower($1); sub(/^0+/, "", value); print substr($3, 7), value }' |
 		LC_ALL=C sort > "$object_dir/abi.actual"
+	# empty input would make the check pass vacuously
+	[ -s "$object_dir/abi.expected" ] ||
+		die "ABI check: no 'crc' symbols parsed from android/abi_gki_aarch64.xml (format changed?)"
+	[ -s "$object_dir/abi.actual" ] ||
+		die "ABI check: no __crc_ symbols in vmlinux (CONFIG_MODVERSIONS off or llvm-nm failed?)"
 	LC_ALL=C join -a 1 -e missing -o 0,1.2,2.2 "$object_dir/abi.expected" "$object_dir/abi.actual" |
 		awk '$2 != $3 { print $1 ": expected " $2 ", built " $3 }' > "$object_dir/abi.diff"
 
 	mismatches=$(wc -l < "$object_dir/abi.diff")
 	if [ "$mismatches" -gt 0 ]; then
-		head -20 "$object_dir/abi.diff" >&2
 		die "ABI check failed: $mismatches of $(wc -l < "$object_dir/abi.expected") symbols differ"
 	fi
 	echo "ABI OK: $(wc -l < "$object_dir/abi.expected") symbols"
@@ -54,7 +58,9 @@ abi_report() {
 		echo
 		[ "$extra" -eq 0 ] || echo "Extra CRC symbols are expected; only missing or mismatched ones break modules."
 		[ "$extra" -eq 0 ] || echo
-		if [ "$broken" -eq 0 ]; then
+		if [ "$expected" -eq 0 ] || [ "$actual" -eq 0 ]; then
+			echo "NO DATA: expected=$expected actual=$actual, nothing was compared."
+		elif [ "$broken" -eq 0 ]; then
 			echo "KMI intact."
 		else
 			echo "KMI BROKEN: $missing missing, $mismatched CRC mismatch"
@@ -75,5 +81,5 @@ abi_report() {
 		echo '</pre>'
 	} >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 
-	[ "$broken" -eq 0 ]
+	[ "$broken" -eq 0 ] && [ "$expected" -gt 0 ] && [ "$actual" -gt 0 ]
 }

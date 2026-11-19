@@ -41,6 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Git identity
+        run: git config --global user.name Scalar && git config --global user.email scalar@localhost
+
       - if: env.SUSFS_DEPLOY_KEY != ''
         uses: actions/checkout@v4
         with:

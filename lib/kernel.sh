@@ -28,7 +28,7 @@ kernel_prepare() {
 	if [ "$1" = SUSFS ]; then
 		kernel_git -c user.name=Scalar -c user.email=scalar@localhost \
 			am -q --3way "$SUSFS_DIR"/*.patch ||
-			{ kernel_git am --abort; die "SUSFS patches do not apply on $KERNEL_REF"; }
+			{ kernel_git am --show-current-patch=diff | head -60 >&2; kernel_git am --abort; die "SUSFS patches do not apply on $KERNEL_REF"; }
 	fi
 
 	# some clang 21+ builds lack -Wuninitialized-const-pointer, probe it
