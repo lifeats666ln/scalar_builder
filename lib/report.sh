@@ -29,10 +29,10 @@ result_block() {
 	printf '%s' \
 		"<code>$esc_release</code>"$'\n'$'\n' \
 		"<blockquote>" \
-		"Release <code>$RELEASE_TYPE</code> · ABI <code>$abi_matched/$abi_expected</code> KMI symbols matched"$'\n' \
-		"Toolchain <code>$CLANG_VERSION</code> · LTO <code>$LTO</code>"$'\n' \
-		"Branch <code>$KERNEL_BRANCH</code> @ <code>$head</code> · $(jakarta_date '+%Y-%m-%d %H:%M') WIB"$'\n' \
-		"Duration <code>$duration</code> · Image <code>$size</code>"$'\n' \
+		"Status <code>$RELEASE_TYPE build</code> - ABI <code>$abi_matched/$abi_expected</code> KMI symbols matched"$'\n' \
+		"Toolchain <code>$CLANG_VERSION</code> - LTO <code>$LTO</code>"$'\n' \
+		"Branch <code>$KERNEL_BRANCH</code> @ <code>$head</code> - $(jakarta_date '+%Y-%m-%d %H:%M') WIB"$'\n' \
+		"Duration <code>$duration</code> - Image <code>$size</code>"$'\n' \
 		"SHA256 <code>$sha</code> (prefix)" \
 		"</blockquote>"
 }
@@ -46,7 +46,7 @@ report_result() {
 	RESULTS+=("$RELEASE_STRING ($duration)" "  $ZIP_FILE")
 	FINISH_LINES+="${FINISH_LINES:+$'\n'$'\n'}<b>$name</b>"$'\n'"$block"
 
-	telegram_send_file "$ZIP_FILE" "<b>Build success</b> · $name"$'\n'$'\n'"$block"
+	telegram_send_file "$ZIP_FILE" "<b>Build success</b> - $name"$'\n'$'\n'"$block"
 }
 
 report_failure() {
@@ -74,12 +74,12 @@ report_failure() {
 	error_count=$(grep -cE "$ERROR_PATTERN" "$LOG_FILE" || true)
 	[ -n "$first_error" ] || first_error="no line matched the error pattern, see the log"
 
-	body="❌ <b>Build error</b> · $(variant_label "$stage") (exit $status)"$'\n'
+	body="❌ <b>Build error</b> - $(variant_label "$stage") (exit $status)"$'\n'
 	body+="🐞 <code>$error_count</code> error line(s): <code>$(telegram_escape "${first_error:0:300}")</code>"$'\n'
 	body+="📄 Log: <code>$(basename "$failure_log")</code>"
 
 	telegram_finish FAILED "$body"
-	telegram_send_file "$failure_log" "📄 Build error · $(variant_label "$stage")"
+	telegram_send_file "$failure_log" "📄 Build error - $(variant_label "$stage")"
 }
 
 # INT/TERM/HUP while the build runs: let the EXIT trap notify as CANCELLED
@@ -94,8 +94,8 @@ on_signal() {
 report_cancel() {
 	local signal=${1:-TERM} stage=${CURRENT_STAGE:-setup} body
 
-	body="🚫 <b>Build cancelled</b> · $(variant_label "$stage")"$'\n'
-	body+="⏹ Signal: <code>$signal</code> · stage: <code>$stage</code>"$'\n'
+	body="🚫 <b>Build cancelled</b> - $(variant_label "$stage")"$'\n'
+	body+="⏹ Signal: <code>$signal</code> - stage: <code>$stage</code>"$'\n'
 	body+="📄 Partial log: <code>$(basename "$LOG_FILE")</code>"
 
 	telegram_finish CANCELLED "$body"

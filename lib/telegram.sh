@@ -46,8 +46,9 @@ telegram_prepare() {
 	done
 	TELEGRAM_FIELDS="📅 $(jakarta_date '+%Y-%m-%d %H:%M') WIB
 🌿 <code>$KERNEL_BRANCH</code> @ <a href=\"$repo/commit/$head\">${head:0:7}</a>
-🛠 $CLANG_VERSION · LTO $LTO · $(nproc) CPU
-🧪 $builds"
+🛠 $CLANG_VERSION - LTO $LTO - $(nproc) CPU
+🧪 $builds
+🏷️ Status <code>$RELEASE_TYPE build</code>"
 
 	TELEGRAM_CHANGELOG="📋 <b>Changelog</b>"$'
 '"<blockquote expandable>"
@@ -63,7 +64,7 @@ telegram_prepare() {
 }
 
 telegram_render() {
-	printf '%s <b>Scalar Kernel %s</b> · <code>%s</code>
+	printf '%s <b>Scalar Kernel %s</b> - <code>%s</code>
 
 <blockquote>%s</blockquote>
 

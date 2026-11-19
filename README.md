@@ -118,12 +118,13 @@ changelog of the last ten commits stay in it the whole time. The clone fetches
 30 commits so there is history to list, merge commits are skipped.
 
 ```text
-🔨 <b>Scalar Kernel Bifeng</b> · <code>BUILDING</code>
+🔨 <b>Scalar Kernel Bifeng</b> - <code>BUILDING</code>
 
 <blockquote>📅 2026-11-16 14:10 WIB
 🌿 android12-5.10-staging @ 4b749c7
-🛠 clang-r614150 · LTO full · 4 CPU
-🧪 Vanilla, KSUN + SUSFS</blockquote>
+🛠 clang-r614150 - LTO full - 4 CPU
+🧪 Vanilla, KSUN + SUSFS
+🏷️ Status weekly build</blockquote>
 
 ⏳ KSUN + SUSFS: compile, 37m 12s
 <code>LTO     vmlinux.o</code>
@@ -138,17 +139,17 @@ The title emoji marks the state: 🔨 building, ✅ success, ❌ build error,
 ```text
 ✅ ... SUCCESS
 📲 5.10.272-Scalar-Bifeng-SUSFS-android12-9-g4f2a7381f169
-✅ KSUN + SUSFS · ABI OK · ⏱ 37m 12s · 💾 25M
+🏷️ Status weekly build - ABI OK - ⏱ 37m 12s - 💾 25M
 🔑 sha256 5139fea704c34853
 
 ❌ ... FAILED
-❌ Build error · KSUN + SUSFS (exit 2)
+❌ Build error - KSUN + SUSFS (exit 2)
 🐞 2 error line(s): error: something broke
 📄 Log: build-failed-SUSFS-20261116-1410.txt
 
 🚫 ... CANCELLED
-🚫 Build cancelled · KSUN + SUSFS
-⏹ Signal: TERM · stage: SUSFS
+🚫 Build cancelled - KSUN + SUSFS
+⏹ Signal: TERM - stage: SUSFS
 📄 Partial log: build.log
 ```
 
@@ -230,7 +231,9 @@ even with 32 GB of swap and the runner loses contact with GitHub. Build full
 LTO releases on a larger machine.
 
 After a successful build `release.sh` publishes `release/` as a GitHub release
-tagged `<codename>-<date>-r<run>`, a prerelease unless the branch is
-`android12-5.10`. The notes list each zip with its sha256 and the
-`git shortlog` since the previous release of the same branch, whose kernel
-head is kept in a hidden `<!-- head <branch> <sha> -->` line.
+tagged `<codename>-<release_type>-<date>-r<run>`, a prerelease unless the branch is
+`android12-5.10`. The notes open with a `weekly build` / `stable build` status
+heading and a branch, toolchain and LTO line, list each zip with its SHA256,
+then the `git shortlog` since the previous release of the same branch. That
+previous kernel head is kept in a hidden `<!-- head <branch> <type> <sha> -->`
+line.

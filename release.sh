@@ -34,19 +34,21 @@ if [ -n "$base" ]; then
 fi
 
 if [ -n "$since" ]; then
-	heading="Changes since [${since:0:12}]($repo/commit/$since):"
+	heading="### Changes since [${since:0:12}]($repo/commit/$since)"
 	shortlog=$(kernel_git shortlog --no-merges "$since..$head")
 	stat=$(kernel_git diff --shortstat "$since" "$head")
 else
-	heading="Last 10 commits:"
+	heading="### Last 10 commits"
 	shortlog=$(kernel_git shortlog --no-merges --max-count=10 "$head")
 	stat=
 fi
 
 {
-	echo "Scalar Kernel **$CODENAME** ($RELEASE_TYPE), \`$KERNEL_BRANCH\` at [${head:0:12}]($repo/commit/$head), $CLANG_VERSION, LTO $LTO."
+	echo "## Scalar Kernel **$CODENAME** - $RELEASE_TYPE build"
 	echo
-	echo "| Variant | File | sha256 |"
+	echo "\`$KERNEL_BRANCH\` @ [${head:0:12}]($repo/commit/$head) - $CLANG_VERSION - LTO $LTO"
+	echo
+	echo "| Variant | File | SHA256 |"
 	echo "|---|---|---|"
 	for zip in "${zips[@]}"; do
 		variant=$(basename "$zip" | sed -E "s/^Scalar-$CODENAME-([A-Za-z]+)-.*/\1/")
@@ -68,6 +70,6 @@ if [ "$KERNEL_BRANCH" = android12-5.10 ] && [ "$RELEASE_TYPE" = stable ]; then
 	prerelease=
 fi
 gh release create "$tag" -R "$GITHUB_REPOSITORY" $prerelease \
-	--title "Scalar Kernel $CODENAME $version ($date) [$RELEASE_TYPE]" \
+	--title "Scalar Kernel $CODENAME $version ($date) - $RELEASE_TYPE build" \
 	--notes-file "$ROOT/release/notes.md" \
 	"${zips[@]}" "$ROOT"/release/*-Image.gz
