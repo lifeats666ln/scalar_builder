@@ -15,7 +15,8 @@ KERNEL_DIR=${KERNEL_DIR:-$ROOT/kernel}
 repo=${KERNEL_REPO%.git}
 head=$(kernel_git rev-parse "origin/$KERNEL_BRANCH")
 date=$(jakarta_date +%Y-%m-%d)
-tag=${CODENAME,,}-${RELEASE_TYPE}-${date//-/}-r$GITHUB_RUN_NUMBER
+tag=${CODENAME,,}-${RELEASE_TYPE}-${date//-/}-r$GITHUB_RUN_NUMBER-${KERNEL_BRANCH#android12-5.10}
+tag=${tag%-}
 zips=("$ROOT"/release/*.zip)
 version=$(basename "${zips[0]}" | sed -E 's/.*-([0-9]+\.[0-9]+\.[0-9]+)-[0-9]{8}\.zip$/\1/')
 

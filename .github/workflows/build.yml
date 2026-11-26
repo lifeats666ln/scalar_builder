@@ -14,7 +14,7 @@ on:
       branch:
         description: Kernel branch
         type: choice
-        options: [android12-5.10-staging, android12-5.10]
+        options: [android12-5.10-staging, android12-5.10-perf-staging, both-staging, android12-5.10]
         default: android12-5.10-staging
       release_type:
         description: Release type
@@ -25,21 +25,37 @@ on:
         description: Any other branch, overrides the choice above
         required: false
 
-concurrency:
-  group: build-${{ inputs.other_branch || inputs.branch }}
-
 env:
-  KERNEL_BRANCH: ${{ inputs.other_branch || inputs.branch }}
   KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
   RELEASE_TYPE: ${{ inputs.release_type }}
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      branches: ${{ steps.pick.outputs.branches }}
+    steps:
+      - id: pick
+        run: |
+          if [ -n "${{ inputs.other_branch }}" ]; then list='["${{ inputs.other_branch }}"]'
+          elif [ "${{ inputs.branch }}" = both-staging ]; then list='["android12-5.10-staging","android12-5.10-perf-staging"]'
+          else list='["${{ inputs.branch }}"]'; fi
+          echo "branches=$list" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.plan.outputs.branches) }}
+    concurrency:
+      group: build-${{ matrix.branch }}
     env:
+      KERNEL_BRANCH: ${{ matrix.branch }}
       SUSFS_DEPLOY_KEY: ${{ secrets.SUSFS_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -79,12 +95,12 @@ jobs:
       - name: Install host tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq bc bison flex libssl-dev libelf-dev lz4 cpio zip ccache
+          sudo apt-get install -y -qq bc bison flex libssl-dev libelf-dev lz4 cpio zip zstd ccache
 
       - uses: actions/cache@v4
         with:
           path: toolchain
-          key: clang-r614150
+          key: neutron-clang-06092026
 
       - uses: actions/cache@v4
         with:
@@ -122,6 +138,6 @@ jobs:
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-failed
+          name: build-failed-${{ matrix.branch }}
           path: release/build-failed-*.txt
           retention-days: 7

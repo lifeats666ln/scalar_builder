@@ -3,7 +3,7 @@
 Build driver for Scalar Kernel, a generic kernel image (GKI) android12-5.10
 tree for arm64: <https://github.com/itelrs4/kernel_common-5.10>
 
-It builds `Image.gz` with the Android open source project (AOSP) clang, checks
+It builds `Image.gz` with the Neutron clang, checks
 the exported application binary interface (ABI) of `vmlinux`, packs an
 AnyKernel3 zip and reports to Telegram. `build.sh` only sequences the steps,
 each one is a function in `lib/`.
@@ -67,11 +67,10 @@ see semantic changes behind an unchanged type.
 
 ## Toolchain
 
-`clang-r614150` comes from a GitHub mirror, gitiles is far slower. Every file
-in `bin/` is hashed with `git hash-object` (SHA-1 over `"blob <len>\0<data>"`)
-and compared with the blob id gitiles lists for the same path, tree mode
-`33261` (`0100755`). On any mismatch the toolchain is removed and the build
-stops.
+`neutron-clang-06092026` (LLVM 24) comes from the Neutron-Toolchains
+`clang-build-catalogue` releases as a `.tar.zst`. The tarball is checked
+against a pinned SHA-256 and removed on a mismatch. To bump it, change the tag,
+URL and hash in `lib/toolchain.sh` and the cache key in both workflows.
 
 ## Build details
 
@@ -122,7 +121,7 @@ changelog of the last ten commits stay in it the whole time. The clone fetches
 
 <blockquote>📅 2026-11-16 14:10 WIB
 🌿 android12-5.10-staging @ 4b749c7
-🛠 clang-r614150 - LTO full - 4 CPU
+🛠 neutron-clang-06092026 - LTO full - 4 CPU
 🧪 Vanilla, KSUN + SUSFS
 🏷️ Status weekly build</blockquote>
 
