@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       codename:
-        description: Codename, 1-14 characters
+        description: Codename, 1-14 characters (android12-5.10-staging)
         required: true
+      codename_perf:
+        description: Codename for android12-5.10-perf-staging, only used by both-staging
+        required: false
       lto:
         description: Link time optimization mode
         type: choice
@@ -36,10 +39,16 @@ jobs:
       branches: ${{ steps.pick.outputs.branches }}
     steps:
       - id: pick
+        env:
+          BRANCH: ${{ inputs.branch }}
+          OTHER: ${{ inputs.other_branch }}
+          NAME: ${{ inputs.codename }}
+          NAME_PERF: ${{ inputs.codename_perf }}
         run: |
-          if [ -n "${{ inputs.other_branch }}" ]; then list='["${{ inputs.other_branch }}"]'
-          elif [ "${{ inputs.branch }}" = both-staging ]; then list='["android12-5.10-staging","android12-5.10-perf-staging"]'
-          else list='["${{ inputs.branch }}"]'; fi
+          if [ -n "$OTHER" ]; then list='[{"branch":"'$OTHER'","codename":"'$NAME'"}]'
+          elif [ "$BRANCH" = both-staging ]; then
+            list='[{"branch":"android12-5.10-staging","codename":"'$NAME'"},{"branch":"android12-5.10-perf-staging","codename":"'${NAME_PERF:-$NAME}'"}]'
+          else list='[{"branch":"'$BRANCH'","codename":"'$NAME'"}]'; fi
           echo "branches=$list" >> "$GITHUB_OUTPUT"
 
   build:
@@ -51,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        branch: ${{ fromJSON(needs.plan.outputs.branches) }}
+        include: ${{ fromJSON(needs.plan.outputs.branches) }}
     concurrency:
       group: build-${{ matrix.branch }}
     env:
@@ -114,7 +123,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
-          CODENAME: ${{ inputs.codename }}
+          CODENAME: ${{ matrix.codename }}
           LTO: ${{ inputs.lto }}
           CCACHE_MAXSIZE: 4G
         run: |
@@ -124,14 +133,14 @@ jobs:
       - if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Scalar-${{ inputs.codename }}-${{ inputs.release_type }}-${{ env.KERNEL_BRANCH }}
+          name: Scalar-${{ matrix.codename }}-${{ inputs.release_type }}-${{ env.KERNEL_BRANCH }}
           path: release/*.zip
           retention-days: 14
 
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-          CODENAME: ${{ inputs.codename }}
+          CODENAME: ${{ matrix.codename }}
           LTO: ${{ inputs.lto }}
         run: ./release.sh
 
