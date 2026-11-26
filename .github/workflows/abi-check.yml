@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       codename:
-        description: Codename, 1-14 characters
+        description: Codename, 1-14 characters (android12-5.10-staging)
         required: true
+      codename_perf:
+        description: Codename for android12-5.10-perf-staging, only used by both-staging
+        required: false
       lto:
         description: Link time optimization mode
         type: choice
@@ -14,7 +17,7 @@ on:
       branch:
         description: Kernel branch
         type: choice
-        options: [android12-5.10-staging, android12-5.10]
+        options: [android12-5.10-staging, android12-5.10-perf-staging, both-staging, android12-5.10]
         default: android12-5.10-staging
       other_branch:
         description: Any other branch, overrides the choice above
@@ -25,18 +28,40 @@ on:
         options: [never, on_failure, always]
         default: never
 
-concurrency:
-  group: abi-${{ inputs.other_branch || inputs.branch }}
-
 env:
-  KERNEL_BRANCH: ${{ inputs.other_branch || inputs.branch }}
   KERNEL_REPO: https://github.com/itelrs4/kernel_common-5.10
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      branches: ${{ steps.pick.outputs.branches }}
+    steps:
+      - id: pick
+        env:
+          BRANCH: ${{ inputs.branch }}
+          OTHER: ${{ inputs.other_branch }}
+          NAME: ${{ inputs.codename }}
+          NAME_PERF: ${{ inputs.codename_perf }}
+        run: |
+          if [ -n "$OTHER" ]; then list='[{"branch":"'$OTHER'","codename":"'$NAME'"}]'
+          elif [ "$BRANCH" = both-staging ]; then
+            list='[{"branch":"android12-5.10-staging","codename":"'$NAME'"},{"branch":"android12-5.10-perf-staging","codename":"'${NAME_PERF:-$NAME}'"}]'
+          else list='[{"branch":"'$BRANCH'","codename":"'$NAME'"}]'; fi
+          echo "branches=$list" >> "$GITHUB_OUTPUT"
+
   abi:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.branches) }}
+    concurrency:
+      group: abi-${{ matrix.branch }}
     env:
+      KERNEL_BRANCH: ${{ matrix.branch }}
       SUSFS_DEPLOY_KEY: ${{ secrets.SUSFS_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +115,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
-          CODENAME: ${{ inputs.codename }}
+          CODENAME: ${{ matrix.codename }}
           LTO: ${{ inputs.lto }}
           NOTIFY: ${{ inputs.notify }}
           CCACHE_MAXSIZE: 4G
@@ -101,7 +126,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: abi-${{ inputs.codename }}-${{ env.KERNEL_BRANCH }}
+          name: abi-${{ matrix.codename }}-${{ env.KERNEL_BRANCH }}
           path: |
             out/*/abi.expected
             out/*/abi.actual
